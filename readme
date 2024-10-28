@@ -1,0 +1,4 @@
+1. Instalar la librería Maatwebsite/Excel
+Primero, instala la librería en tu proyecto Laravel utilizando Composer:
+
+composer require maatwebsite/excel
