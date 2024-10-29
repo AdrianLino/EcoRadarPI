@@ -13,13 +13,14 @@ class EncuestaImport implements ToCollection
      *
      * @param Collection $collection
      */
-    public function collection(Collection $collection)
+    public function collection(Collection $rows)
     {
-        // Asume que la primera fila son los encabezados, por lo que la saltamos.
-        foreach ($collection as $index => $row) {
+        foreach ($rows as $index => $row) {
             if ($index === 0) {
-                continue; // Saltar la primera fila con los encabezados
+                // Saltar la fila de encabezados
+                continue;
             }
+
 
             // Inserta los datos en la tabla 'encuestas'
             Encuesta::create([

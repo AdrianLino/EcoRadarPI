@@ -19,12 +19,12 @@ return new class extends Migration
             $table->string('direccion')->nullable(); // DIRECCIÓN
             $table->string('profesor')->nullable(); // PROFESOR
             $table->string('asignatura')->nullable(); // ASIGNATURA
-            $table->string('evaluacion')->nullable(); // EVALUACIÓN
+            $table->double('evaluacion')->nullable(); // EVALUACIÓN
             $table->integer('encuestas')->nullable(); // ENCUESTAS
 
             // Columnas para los números del 1 al 20
             for ($i = 1; $i <= 20; $i++) {
-                $table->integer("respuesta_$i")->nullable(); // 1, 2, 3,... hasta 20
+                $table->double("respuesta_$i")->nullable(); // 1, 2, 3,... hasta 20
             }
 
             // Columnas para comentarios del 1 al 13

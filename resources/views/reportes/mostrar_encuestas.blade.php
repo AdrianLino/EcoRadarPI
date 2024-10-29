@@ -1,30 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encuestas Docentes</title>
-    <!-- Agrega estilos si es necesario, por ejemplo, usando Tailwind CSS o Bootstrap -->
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid black;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
-</head>
-<body>
-
-<h1>Lista de Encuestas Docentes</h1>
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('Lista de Encuestas Docentes') }}
+        </h2>
+    </x-slot>
 
 <table>
     <thead>
@@ -73,5 +52,22 @@
     </tbody>
 </table>
 
-</body>
-</html>
+</x-app-layout>
+
+
+<style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
