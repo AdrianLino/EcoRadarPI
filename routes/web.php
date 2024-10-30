@@ -33,6 +33,9 @@ Route::middleware('auth')->group(function () {
 // Ruta para mostrar los detalles de un profesor
     Route::get('/profesores/{profesor}', [EncuestaController::class, 'mostrarDetallesProfesor'])->name('profesores.detalles');
 
+    //Ruta para las carreras
+    Route::get('/panel-general', [EncuestaController::class, 'panelGeneral'])->name('panel.general');
+    Route::get('/carrera/{carrera}', [EncuestaController::class, 'detallesCarrera'])->name('carrera.detalles');
 });
 
 require __DIR__.'/auth.php';
