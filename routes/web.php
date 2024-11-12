@@ -30,6 +30,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/datos/delete', [DatosCalificacionesController::class, 'delete'])->name('datos.delete');
     Route::get('/importar', [DatosCalificacionesController::class, 'showImportForm'])->name('datos.import.form');
     Route::post('/importar', [DatosCalificacionesController::class, 'import'])->name('datos.import');
+    Route::post('/importar/file', [DatosCalificacionesController::class, 'importFile'])->name('datos.import.file');
+
 
 
 
