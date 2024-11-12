@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EncuestaController;
+use App\Http\Controllers\DatosCalificacionesController;
 
 
 Route::get('/', function () {
@@ -23,6 +24,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/encuesta', [EncuestaController::class, 'index'])->name('encuesta.index');
     Route::post('/encuesta/importar', [EncuestaController::class, 'importar'])->name('encuesta.importar');
 
+    Route::get('/datos', [DatosCalificacionesController::class, 'index'])->name('datos.index');
+    Route::get('/datos/edit/{id}', [DatosCalificacionesController::class, 'edit'])->name('datos.edit');
+    Route::post('/datos/update/{id}', [DatosCalificacionesController::class, 'update'])->name('datos.update');
+    Route::post('/datos/delete', [DatosCalificacionesController::class, 'delete'])->name('datos.delete');
+    Route::get('/importar', [DatosCalificacionesController::class, 'showImportForm'])->name('datos.import.form');
+    Route::post('/importar', [DatosCalificacionesController::class, 'import'])->name('datos.import');
+
+
+
     #ver los datos importados
     Route::get('/encuestas/mostrar', [EncuestaController::class, 'mostrarEncuestas'])->name('encuestas.mostrar');
 
@@ -30,7 +40,7 @@ Route::middleware('auth')->group(function () {
     // Ruta para listar los profesores con buscador
     Route::get('/profesores', [EncuestaController::class, 'listarProfesores'])->name('profesores.listar');
 
-// Ruta para mostrar los detalles de un profesor
+    // Ruta para mostrar los detalles de un profesor
     Route::get('/profesores/{profesor}', [EncuestaController::class, 'mostrarDetallesProfesor'])->name('profesores.detalles');
 
     //Ruta para las carreras
@@ -38,4 +48,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/carrera/{carrera}', [EncuestaController::class, 'detallesCarrera'])->name('carrera.detalles');
 });
 
-require __DIR__.'/auth.php';
+
+Route::group(['middleware' => ['role:super admin']], function () {
+    // Rutas solo accesibles para el Super Admin
+});
+
+require __DIR__ . '/auth.php';

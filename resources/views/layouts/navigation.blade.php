@@ -54,12 +54,21 @@
                             <x-dropdown-link :href="route('profile.edit')">
                                 {{ __('Profile') }}
                             </x-dropdown-link>
+
+                            @role('super admin')
                             <x-dropdown-link :href="route('encuestas.mostrar')">
                                 {{ __('Mostrar Encuestas') }}
                             </x-dropdown-link>
                             <x-dropdown-link :href="route('encuesta.index')">
                                 {{ __('Subir Encuestas') }}
                             </x-dropdown-link>
+                            <x-dropdown-link :href="route('datos.index')">
+                                {{ __('Mostrar Calificaciones') }}
+                            </x-dropdown-link>
+                            <x-dropdown-link :href="route('datos.import.form')">
+                                {{ __('Subir Calificaciones') }}
+                            </x-dropdown-link>
+                            @endrole
 
                             <!-- Authentication -->
                             <form method="POST" action="{{ route('logout') }}">

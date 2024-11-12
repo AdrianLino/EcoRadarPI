@@ -2,3 +2,4 @@
 Primero, instala la librería en tu proyecto Laravel utilizando Composer:
 
 composer require maatwebsite/excel
+composer require spatie/laravel-permission
