@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EncuestaController;
 use App\Http\Controllers\DatosCalificacionesController;
+use App\Http\Controllers\MostrarCalificacionesController;
 
 
 Route::get('/', function () {
@@ -31,6 +32,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/importar', [DatosCalificacionesController::class, 'showImportForm'])->name('datos.import.form');
     Route::post('/importar', [DatosCalificacionesController::class, 'import'])->name('datos.import');
     Route::post('/importar/file', [DatosCalificacionesController::class, 'importFile'])->name('datos.import.file');
+
+    #mostrar datos
+    Route::get('/calificaciones-admon-neg-mixta', [MostrarCalificacionesController::class, 'mostrarCalificacionesAdmonNegMixta'])->name('calificaciones.admon_neg_mixta');
+
 
 
 
