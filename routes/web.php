@@ -34,8 +34,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/importar/file', [DatosCalificacionesController::class, 'importFile'])->name('datos.import.file');
 
     #mostrar datos
-    Route::get('/calificaciones-admon-neg-mixta', [MostrarCalificacionesController::class, 'mostrarCalificacionesAdmonNegMixta'])->name('calificaciones.admon_neg_mixta');
-
+    Route::get('/calificaciones', [MostrarCalificacionesController::class, 'seleccionarCarrera'])->name('calificaciones.seleccionar_carrera');
+    Route::get('/calificaciones/{carrera}', [MostrarCalificacionesController::class, 'mostrarCalificaciones'])->name('calificaciones.mostrar');
+    
 
 
 

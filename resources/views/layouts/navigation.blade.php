@@ -25,7 +25,7 @@
                     <x-nav-link :href="route('panel.general')" :active="request()->routeIs('panel.general')">
                         <span class="text-white dark:text-white">{{ __('Carreras') }}</span>
                     </x-nav-link>
-                    <x-nav-link :href="route('calificaciones.admon_neg_mixta')" :active="request()->routeIs('panel.general')">
+                    <x-nav-link :href="route('calificaciones.seleccionar_carrera')" :active="request()->routeIs('panel.general')">
                         <span class="text-white dark:text-white">{{ __('Calificaciones') }}</span>
                     </x-nav-link>
                 </div>
