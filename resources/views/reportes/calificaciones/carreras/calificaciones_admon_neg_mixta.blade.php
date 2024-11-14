@@ -37,12 +37,24 @@
                         @foreach($calificaciones as $matricula => $materiasAlumno)
                             @php
                                 $calificacion = $materiasAlumno[$materia] ?? null;
+                                $promedioP = $calificacion['promedio_p'] ?? null;
+                                $cicloP = $calificacion['ciclo_p'] ?? null;
+                                $cicloOtro = $calificacion['ciclo_otro'] ?? null;
+                                $isRecentCiclo = ($cicloP === $cicloMasReciente || $cicloOtro === $cicloMasReciente);
+                                $evaluationType = $calificacion['evaluation_type'] ?? null;
+
                             @endphp
-                            <td class="calificacion">
-                                @if($calificacion)
-                                    <span class="promedio_p" data-decimal="{{ $calificacion['promedio_p'] ?? '' }}" data-entero="{{ floor($calificacion['promedio_p']) ?? '' }}">{{ $calificacion['promedio_p'] ?? '' }}</span>
+                            <td class="calificacion" style="background-color: {{ $promedioP !== null && $promedioP < 6 ? 'red' : ($isRecentCiclo ? 'lightblue' : 'transparent') }};">
+                                @if($promedioP !== null)
+                                    <span class="promedio_p">{{ $promedioP }}</span>
+                                    <small>({{ $evaluationType }})</small>
+                                    @if($cicloP)
+                                        <small>({{ $cicloP }})</small>
+                                    @elseif($cicloOtro)
+                                        <small>({{ $cicloOtro }})</small>
+                                    @endif
                                 @else
-                                    N/A
+                                    
                                 @endif
                             </td>
                         @endforeach
@@ -60,11 +72,18 @@
                 </tr>
             @endforeach
 
-            <!-- Fila del promedio general para cada alumno -->
+            <!-- Fila del promedio general y materias reprobadas para cada alumno -->
             <tr class="font-weight-bold">
                 <td>Promedio General</td>
                 @foreach($calificaciones as $matricula => $materiasAlumno)
                     <td class="text-center">{{ $promedioGeneralPorAlumno[$matricula] ?? 'N/A' }}</td>
+                @endforeach
+                <td></td>
+            </tr>
+            <tr class="font-weight-bold">
+                <td>Materias Reprobadas</td>
+                @foreach($calificaciones as $matricula => $materiasAlumno)
+                    <td class="text-center">{{ $materiasReprobadasPorAlumno[$matricula] ?? 0 }}</td>
                 @endforeach
                 <td></td>
             </tr>

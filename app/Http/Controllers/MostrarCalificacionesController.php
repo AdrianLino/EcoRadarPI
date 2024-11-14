@@ -14,6 +14,30 @@ class MostrarCalificacionesController extends Controller
     }
 
 
+    private function getEvaluationType($evaluations)
+    {
+        // Mapeo de tipos de evaluación a leyendas
+        $evaluationMapping = [
+            'P1' => 'Ordinario',
+            'P2' => 'Ordinario',
+            'P3' => 'Ordinario',
+            'PFO' => 'Ordinario',
+            'EQ' => 'Equivalencia',
+            'EXT1' => 'Extraordinario 1',
+            'EXT2' => 'Extraordinario 2',
+        ];
+
+        // Buscar el tipo de evaluación más alto disponible
+        foreach (['P1', 'P2', 'P3', 'PFO', 'EQ', 'EXT1', 'EXT2'] as $key) {
+            if ($evaluations->contains('evaluacion', $key)) {
+                return $evaluationMapping[$key];
+            }
+        }
+
+        return null;
+    }
+
+
     public function mostrarCalificacionesAdmonNegMixta(Request $request)
     {
         // Obtener el término de búsqueda si está presente
@@ -88,6 +112,7 @@ class MostrarCalificacionesController extends Controller
         ];
 
 
+       
         $query = DatosCalificaciones::where('descripcion_breve', 'ADMON.NEG.MIXTA');
 
         if ($search) {
@@ -99,41 +124,74 @@ class MostrarCalificacionesController extends Controller
 
         $datos = $query->get();
 
-        // Organizar las calificaciones y redondearlas
+        // Identificar el ciclo más reciente usando el orden CB, CC, CA
+        $ciclos = $datos->pluck('ciclo')->unique()->filter()->sort()->values()->all();
+
+        usort($ciclos, function ($a, $b) {
+            // Separar el año y la parte del ciclo (CB, CC, CA)
+            [$yearA, $partA] = explode('-', $a);
+            [$yearB, $partB] = explode('-', $b);
+
+            // Ordenar primero por año en orden ascendente
+            if ($yearA != $yearB) {
+                return $yearA <=> $yearB;
+            }
+
+            // Ordenar la parte del ciclo en el orden CB, CC, CA
+            $order = ['CB' => 0, 'CC' => 1, 'CA' => 2];
+            return $order[$partA] <=> $order[$partB];
+        });
+
+        // El ciclo más reciente será el último en el array después de ordenar
+        $cicloMasReciente = end($ciclos);
+
+        // Organizar las calificaciones incluyendo el ciclo
         $calificaciones = $datos->groupBy(['matricula', 'descripcion'])->map(function ($materias) {
             return $materias->map(function ($evaluaciones) {
                 $p_values = $evaluaciones->filter(function ($item) {
                     return in_array($item->evaluacion, ['P1', 'P2', 'P3']);
                 })->groupBy('evaluacion')->map(function ($items) {
-                    return $items->max('valor');
+                    return [
+                        'valor' => $items->max('valor'),
+                        'ciclo' => $items->first()->ciclo, // Tomamos el ciclo del primer elemento
+                    ];
                 });
 
-                $promedio_p = $p_values->isNotEmpty() ? max($this->customRound($p_values->avg()), 5) : null;
+                $promedio_p = $p_values->isNotEmpty() ? max($this->customRound($p_values->avg('valor')), 5) : null;
 
                 $otros_values = $evaluaciones->filter(function ($item) {
                     return in_array($item->evaluacion, ['EQ', 'EXT1', 'EXT2', 'EXT3', 'PFO']);
                 })->groupBy('evaluacion')->map(function ($items) {
-                    return $items->max('valor');
+                    return [
+                        'valor' => $items->max('valor'),
+                        'ciclo' => $items->first()->ciclo,
+                    ];
                 });
 
-                $max_otro = $otros_values->isNotEmpty() ? max($this->customRound($otros_values->max()), 5) : null;
+                $max_otro = $otros_values->isNotEmpty() ? max($this->customRound($otros_values->max('valor')), 5) : null;
+                $evaluationType = $this->getEvaluationType($evaluaciones);
 
                 return [
                     'promedio_p' => $promedio_p,
                     'max_otro' => $max_otro,
+                    'ciclo_p' => $p_values->isNotEmpty() ? $p_values->first()['ciclo'] : null,
+                    'ciclo_otro' => $otros_values->isNotEmpty() ? $otros_values->first()['ciclo'] : null,
+                    'evaluation_type' => $evaluationType,
                 ];
             });
         });
 
         $nombresAlumnos = $datos->pluck('apellidos_nombre', 'matricula');
 
-        // Calcular promedios por cuatrimestre y el promedio general para cada alumno
+        // Calcular promedios por cuatrimestre, promedio general y materias reprobadas para cada alumno
         $promediosCuatrimestresPorAlumno = [];
         $promedioGeneralPorAlumno = [];
+        $materiasReprobadasPorAlumno = [];
 
         foreach ($calificaciones as $matricula => $materiasAlumno) {
             $totalPromediosAlumno = 0;
             $totalCalificacionesAlumno = 0;
+            $reprobadas = 0;
 
             foreach ($cuatrimestres as $cuatrimestre => $materias) {
                 $totalPromediosCuatrimestre = 0;
@@ -141,8 +199,15 @@ class MostrarCalificacionesController extends Controller
 
                 foreach ($materias as $materia) {
                     if (isset($materiasAlumno[$materia]['promedio_p'])) {
-                        $totalPromediosCuatrimestre += $materiasAlumno[$materia]['promedio_p'];
-                        $totalPromediosAlumno += $materiasAlumno[$materia]['promedio_p'];
+                        $calificacion = $materiasAlumno[$materia]['promedio_p'];
+
+                        // Contar como reprobada si la calificación es menor a 6
+                        if ($calificacion < 6) {
+                            $reprobadas++;
+                        }
+
+                        $totalPromediosCuatrimestre += $calificacion;
+                        $totalPromediosAlumno += $calificacion;
                         $totalCalificacionesCuatrimestre++;
                         $totalCalificacionesAlumno++;
                     }
@@ -156,8 +221,14 @@ class MostrarCalificacionesController extends Controller
             $promedioGeneralPorAlumno[$matricula] = $totalCalificacionesAlumno > 0
                 ? round($totalPromediosAlumno / $totalCalificacionesAlumno, 1)
                 : null;
+
+            $materiasReprobadasPorAlumno[$matricula] = $reprobadas;
         }
 
-        return view('reportes/calificaciones/carreras/calificaciones_admon_neg_mixta', compact('cuatrimestres', 'calificaciones', 'nombresAlumnos', 'search', 'promediosCuatrimestresPorAlumno', 'promedioGeneralPorAlumno'));
+        return view('reportes/calificaciones/carreras/calificaciones_admon_neg_mixta', compact(
+            'cuatrimestres', 'calificaciones', 'nombresAlumnos', 'search', 
+            'promediosCuatrimestresPorAlumno', 'promedioGeneralPorAlumno', 
+            'materiasReprobadasPorAlumno', 'cicloMasReciente'
+        ));
     }
 }
