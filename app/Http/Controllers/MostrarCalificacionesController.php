@@ -7,16 +7,13 @@ use App\Models\DatosCalificaciones;
 
 class MostrarCalificacionesController extends Controller
 {
-
     private function customRound($value)
     {
         return ($value - floor($value)) >= 0.5 ? ceil($value) : floor($value);
     }
 
-
     private function getEvaluationType($evaluations)
     {
-        // Mapeo de tipos de evaluación a leyendas
         $evaluationMapping = [
             'P1' => 'Ordinario',
             'P2' => 'Ordinario',
@@ -27,133 +24,49 @@ class MostrarCalificacionesController extends Controller
             'EXT2' => 'Extraordinario 2',
         ];
 
-        // Buscar el tipo de evaluación más alto disponible
         foreach (['P1', 'P2', 'P3', 'PFO', 'EQ', 'EXT1', 'EXT2'] as $key) {
             if ($evaluations->contains('evaluacion', $key)) {
                 return $evaluationMapping[$key];
             }
         }
-
         return null;
     }
 
-
-    public function mostrarCalificacionesAdmonNegMixta(Request $request)
+    private function obtenerCicloMasReciente($datos)
     {
-        // Obtener el término de búsqueda si está presente
-        $search = $request->input('search');
-
-        // Definimos las materias organizadas por cuatrimestre
-        $cuatrimestres = [
-            'Primer Cuatrimestre' => [
-                'Habilidades de Comunicación y Expresión Oral y Escrita',
-                'Tecnologías de la Información y de la Comunicación',
-                'Administración',
-                'Derecho I (Laboral y Civil)',
-                'Metodología de la Investigación',
-                'Introducción Financiera',
-            ],
-            'Segundo Cuatrimestre' => [
-                'Mercadotecnia',
-                'Administración, Innovación y Modelos de Negocios',
-                'Derecho II',
-                'Matemáticas Aplicadas a los Negocios',
-                'Contabilidad I',
-                'Microeconomía',
-            ],
-            'Tercer Cuatrimestre' => [
-                'Comportamiento del Consumidor',
-                'Probabilidad y Estadística aplicada a los negocios',
-                'Contabilidad II',
-                'Inteligencia Emocional',
-                'Comunicación Organizacional',
-                'Macroeconomía',
-            ],
-            'Cuarto Cuatrimestre' => [
-                'Empresa y Cultura Global',
-                'Mercadotecnia Digital',
-                'Finanzas Aplicadas a la toma de Decisiones',
-                'Comportamiento Organizacional',
-                'Negocios y Comercio Internacional',
-                'Sistemas de Información Gerencial',
-            ],
-            'Quinto Cuatrimestre' => [
-                'Competitividad Global',
-                'Administración y Procesos de Ventas',
-                'Análisis y Administración de la Cadena de Valor',
-                'Administración de Operaciones',
-                'Realidad Mexicana Contemporánea',
-                'Finanzas Personales y Empresariales',
-            ],
-            'Sexto Cuatrimestre' => [
-                'Ética, Responsabilidad Social Empresarial y Desarrollo Sostenible',
-                'Evaluación de Proyectos y Fuentes de Financiamiento',
-                'Administración de Calidad',
-                'Desarrollo de Habilidades Directivas',
-                'Estructura Organizacional de la Empresa',
-                'Auditoría Administrativa',
-            ],
-            'Séptimo Cuatrimestre' => [
-                'Cadena de Suministro',
-                'Estrategias de Distribución y Comercialización',
-                'Estrategias Fiscales',
-                'Mercadotecnia de Servicios',
-                'Consultoría Administrativa',
-                'Análisis de Mercados Emergentes',
-            ],
-            'Octavo Cuatrimestre' => [
-                'Tópicos de Especialidad I',
-                'Habilidades de Liderazgo',
-                'Planeación Estratégica',
-                'Seminario de Dirección Estratégica',
-                'Tópicos de Especialidad II',
-                'Tópicos de Especialidad III',
-            ],
-        ];
-
-
-       
-        $query = DatosCalificaciones::where('descripcion_breve', 'ADMON.NEG.MIXTA');
-
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('apellidos_nombre', 'like', '%' . $search . '%')
-                  ->orWhere('matricula', 'like', '%' . $search . '%');
-            });
-        }
-
-        $datos = $query->get();
-
-        // Identificar el ciclo más reciente usando el orden CB, CC, CA
         $ciclos = $datos->pluck('ciclo')->unique()->filter()->sort()->values()->all();
-
         usort($ciclos, function ($a, $b) {
-            // Separar el año y la parte del ciclo (CB, CC, CA)
             [$yearA, $partA] = explode('-', $a);
             [$yearB, $partB] = explode('-', $b);
 
-            // Ordenar primero por año en orden ascendente
             if ($yearA != $yearB) {
                 return $yearA <=> $yearB;
             }
 
-            // Ordenar la parte del ciclo en el orden CB, CC, CA
-            $order = ['CB' => 0, 'CC' => 1, 'CA' => 2];
-            return $order[$partA] <=> $order[$partB];
+            $orderCB_CA = ['CB' => 0, 'CC' => 1, 'CA' => 2];
+            $orderS2_S1 = ['S2' => 0, 'S1' => 1];
+
+            if (isset($orderCB_CA[$partA]) && isset($orderCB_CA[$partB])) {
+                return $orderCB_CA[$partA] <=> $orderCB_CA[$partB];
+            } elseif (isset($orderS2_S1[$partA]) && isset($orderS2_S1[$partB])) {
+                return $orderS2_S1[$partA] <=> $orderS2_S1[$partB];
+            } else {
+                return 0;
+            }
         });
+        return end($ciclos);
+    }
 
-        // El ciclo más reciente será el último en el array después de ordenar
-        $cicloMasReciente = end($ciclos);
-
-        // Organizar las calificaciones incluyendo el ciclo
-        $calificaciones = $datos->groupBy(['matricula', 'descripcion'])->map(function ($materias) {
+    private function procesarCalificaciones($datos, $cuatrimestres)
+    {
+        return $datos->groupBy(['matricula', 'descripcion'])->map(function ($materias) {
             return $materias->map(function ($evaluaciones) {
                 $p_values = $evaluaciones->filter(function ($item) {
                     return in_array($item->evaluacion, ['P1', 'P2', 'P3']);
                 })->groupBy('evaluacion')->map(function ($items) {
                     return [
                         'valor' => $items->max('valor'),
-                        'ciclo' => $items->first()->ciclo, // Tomamos el ciclo del primer elemento
+                        'ciclo' => $items->first()->ciclo,
                     ];
                 });
 
@@ -180,55 +93,194 @@ class MostrarCalificacionesController extends Controller
                 ];
             });
         });
+    }
 
-        $nombresAlumnos = $datos->pluck('apellidos_nombre', 'matricula');
-
-        // Calcular promedios por cuatrimestre, promedio general y materias reprobadas para cada alumno
+    private function calcularPromediosPorCuatrimestre($calificaciones, $cuatrimestres)
+    {
         $promediosCuatrimestresPorAlumno = [];
-        $promedioGeneralPorAlumno = [];
-        $materiasReprobadasPorAlumno = [];
-
         foreach ($calificaciones as $matricula => $materiasAlumno) {
-            $totalPromediosAlumno = 0;
-            $totalCalificacionesAlumno = 0;
-            $reprobadas = 0;
-
             foreach ($cuatrimestres as $cuatrimestre => $materias) {
                 $totalPromediosCuatrimestre = 0;
                 $totalCalificacionesCuatrimestre = 0;
-
-                foreach ($materias as $materia) {
+                foreach ($materias as $materia => $creditos) {
                     if (isset($materiasAlumno[$materia]['promedio_p'])) {
-                        $calificacion = $materiasAlumno[$materia]['promedio_p'];
-
-                        // Contar como reprobada si la calificación es menor a 6
-                        if ($calificacion < 6) {
-                            $reprobadas++;
-                        }
-
-                        $totalPromediosCuatrimestre += $calificacion;
-                        $totalPromediosAlumno += $calificacion;
+                        $totalPromediosCuatrimestre += $materiasAlumno[$materia]['promedio_p'];
                         $totalCalificacionesCuatrimestre++;
-                        $totalCalificacionesAlumno++;
                     }
                 }
-
                 $promediosCuatrimestresPorAlumno[$matricula][$cuatrimestre] = $totalCalificacionesCuatrimestre > 0
                     ? round($totalPromediosCuatrimestre / $totalCalificacionesCuatrimestre, 1)
                     : null;
             }
+        }
+        return $promediosCuatrimestresPorAlumno;
+    }
 
-            $promedioGeneralPorAlumno[$matricula] = $totalCalificacionesAlumno > 0
-                ? round($totalPromediosAlumno / $totalCalificacionesAlumno, 1)
+    private function calcularPromedioGeneral($promediosCuatrimestresPorAlumno)
+    {
+        $promedioGeneralPorAlumno = [];
+        foreach ($promediosCuatrimestresPorAlumno as $matricula => $cuatrimestres) {
+            $totalPromedios = array_sum(array_filter($cuatrimestres));
+            $totalCuatrimestres = count(array_filter($cuatrimestres));
+            $promedioGeneralPorAlumno[$matricula] = $totalCuatrimestres > 0
+                ? round($totalPromedios / $totalCuatrimestres, 1)
                 : null;
+        }
+        return $promedioGeneralPorAlumno;
+    }
 
+    private function calcularMateriasReprobadas($calificaciones, $cuatrimestres)
+    {
+        $materiasReprobadasPorAlumno = [];
+        foreach ($calificaciones as $matricula => $materiasAlumno) {
+            $reprobadas = 0;
+            foreach ($cuatrimestres as $cuatrimestre => $materias) {
+                foreach ($materias as $materia => $creditos) {
+                    if (isset($materiasAlumno[$materia]['promedio_p']) && $materiasAlumno[$materia]['promedio_p'] < 6) {
+                        $reprobadas++;
+                    }
+                }
+            }
             $materiasReprobadasPorAlumno[$matricula] = $reprobadas;
+        }
+        return $materiasReprobadasPorAlumno;
+    }
+
+    public function mostrarCalificacionesAdmonNegMixta(Request $request)
+    {
+        $search = $request->input('search');
+        $selectedCiclo = $request->input('selected_ciclo');
+
+        $cuatrimestres = [
+            'Primer Cuatrimestre' => [
+                'Habilidades de Comunicación y Expresión Oral y Escrita' => 7,
+                'Tecnologías de la Información y de la Comunicación' => 7,
+                'Administración' => 7,
+                'Derecho I (Laboral y Civil)' => 7,
+                'Metodología de la Investigación' => 7,
+                'Introducción Financiera' => 7,
+            ],
+            'Segundo Cuatrimestre' => [
+                'Mercadotecnia' => 7,
+                'Administración, Innovación y Modelos de Negocios' => 7,
+                'Derecho II (Mercantil y Fiscal)' => 7,
+                'Matemáticas Aplicadas a los Negocios' => 7,
+                'Contabilidad I' => 7,
+                'Microeconomía' => 7,
+            ],
+            'Tercer Cuatrimestre' => [
+                'Comportamiento del Consumidor' => 7,
+                'Probabilidad y Estadística aplicada a los negocios' => 7,
+                'Contabilidad II' => 7,
+                'Inteligencia Emocional' => 7,
+                'Comunicación Organizacional' => 7,
+                'Macroeconomía' => 7,
+            ],
+            'Cuarto Cuatrimestre' => [
+                'Investigación de Mercados Cualitativa' => 7,
+                'Diseño Gráfico' => 7,
+                'Finanzas Aplicadas a la toma de Decisiones' => 7,
+                'Negocios y Comercio Internacional' => 7,
+                'Sistemas de Información Gerencial' => 7,
+                'Publicidad y Promoción' => 7,
+            ],
+            'Quinto Cuatrimestre' => [
+                'Investigación de Mercados Cuantitativa' => 7,
+                'Competitividad Global' => 7,
+                'Administración y Procesos de Ventas' => 7,
+                'Finanzas Personales y Empresariales' => 7,
+                'Relaciones Públicas' => 7,
+                'Estrategia de Precios' => 7,
+            ],
+            'Sexto Cuatrimestre' => [
+                'Ética, Responsabilidad Social Empresarial y Desarrollo Sostenible' => 7,
+                'Inteligencia de Mercados' => 7,
+                'Mercadotecnia Digital I' => 7,
+                'Evaluación de Proyectos y Fuentes de Financiamiento' => 7,
+                'Producción de Medios Interactivos' => 7,
+                'Mercadotecnia Internacional' => 7,
+            ],
+            'Séptimo Cuatrimestre' => [
+                'Estrategias de Distribución y Comercialización' => 7,
+                'Mercadotecnia Digital II' => 7,
+                'Mercadotecnia Estratégica entre Negocios' => 7,
+                'Control de Presupuestos y Administración de Operaciones' => 7,
+                'Mercadotecnia de Servicios' => 7,
+                'Desarrollo de Marcas y Nuevos Productos' => 7,
+            ],
+            'Octavo Cuatrimestre' => [
+                'Seminario de Comunicación Integral' => 7,
+                'Seminario Integrador de Mercadotecnia Estratégica' => 7,
+                'Tópicos de Especialidad I' => 7,
+                'Tópicos de Especialidad II' => 7,
+                'Tópico de Especialidad III' => 7,
+                'Habilidades de Liderazgo' => 7,
+            ],
+            // Agrega los demás cuatrimestres y sus materias aquí
+        ];
+
+
+        $query = DatosCalificaciones::where('descripcion_breve', 'MERCADOTECNIA MIXTA');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('apellidos_nombre', 'like', '%' . $search . '%')
+                    ->orWhere('matricula', 'like', '%' . $search . '%');
+            });
+        }
+
+        $datos = $query->get();
+
+        // Obtener los ciclos existentes y el ciclo más reciente
+        $ciclosExistentes = $datos->pluck('ciclo')->unique()->filter()->sort()->values()->all();
+        $cicloMasReciente = $this->obtenerCicloMasReciente($datos);
+
+        // Si no se seleccionó un ciclo, usar el más reciente
+        if (!$selectedCiclo) {
+            $selectedCiclo = $cicloMasReciente;
+        }
+
+        $calificaciones = $this->procesarCalificaciones($datos, $cuatrimestres);
+        $nombresAlumnos = $datos->pluck('apellidos_nombre', 'matricula');
+        $promediosCuatrimestresPorAlumno = $this->calcularPromediosPorCuatrimestre($calificaciones, $cuatrimestres);
+        $promedioGeneralPorAlumno = $this->calcularPromedioGeneral($promediosCuatrimestresPorAlumno);
+        $materiasReprobadasPorAlumno = $this->calcularMateriasReprobadas($calificaciones, $cuatrimestres);
+
+        // Calcular los créditos totales de todas las materias
+        $creditosTotales = collect($cuatrimestres)->flatten()->sum();
+
+        // Inicializar arrays para almacenar los créditos cursados y faltantes por cada alumno
+        $creditosCursadosPorAlumno = [];
+        $creditosFaltantesPorAlumno = [];
+
+        foreach ($calificaciones as $matricula => $materiasAlumno) {
+            $creditosCursados = 0;
+
+            foreach ($cuatrimestres as $cuatrimestre => $materias) {
+                foreach ($materias as $materia => $creditos) {
+                    if (isset($materiasAlumno[$materia]) && ($materiasAlumno[$materia]['promedio_p'] ?? 0) >= 6) {
+                        $creditosCursados += $creditos;
+                    }
+                }
+            }
+
+            $creditosCursadosPorAlumno[$matricula] = $creditosCursados;
+            $creditosFaltantesPorAlumno[$matricula] = $creditosTotales - $creditosCursados;
         }
 
         return view('reportes/calificaciones/carreras/calificaciones_admon_neg_mixta', compact(
-            'cuatrimestres', 'calificaciones', 'nombresAlumnos', 'search', 
-            'promediosCuatrimestresPorAlumno', 'promedioGeneralPorAlumno', 
-            'materiasReprobadasPorAlumno', 'cicloMasReciente'
+            'cuatrimestres',
+            'calificaciones',
+            'nombresAlumnos',
+            'search',
+            'selectedCiclo',
+            'ciclosExistentes',
+            'promediosCuatrimestresPorAlumno',
+            'promedioGeneralPorAlumno',
+            'materiasReprobadasPorAlumno',
+            'cicloMasReciente',
+            'creditosTotales',
+            'creditosCursadosPorAlumno',
+            'creditosFaltantesPorAlumno'
         ));
     }
 }
