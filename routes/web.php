@@ -35,7 +35,12 @@ Route::middleware('auth')->group(function () {
 
     #mostrar datos
     Route::get('/calificaciones-admon-neg-mixta', [MostrarCalificacionesController::class, 'mostrarCalificacionesAdmonNegMixta'])->name('calificaciones.admon_neg_mixta');
+    Route::get('/calificaciones/{carrera}', [MostrarCalificacionesController::class, 'mostrarCalificacionesPorCarrera'])
+    ->name('calificaciones.por_carrera');
 
+    Route::get('/calificaciones', function () {
+        return view('reportes/calificaciones/carreras/seleccionarCarrera');
+    })->name('calificaciones');
 
 
 
